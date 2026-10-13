@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-base text-text-primary;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color-scheme: dark;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #282828;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #383838;
+  }
+}
+
+@layer components {
+  /* Small icon button used in window chrome */
+  .win-btn {
+    @apply flex h-[22px] w-[22px] items-center justify-center rounded text-text-muted transition-colors hover:bg-dark-hover hover:text-text-primary;
+  }
+
+  /* Canvas layout presets */
+  .layout-grid-2x2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .layout-col-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .layout-col-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .layout-col-1 {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .layout-1top-2bot {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 1.15fr 1fr;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .layout-1top-2bot > *:first-child {
+    grid-column: span 2;
+  }
+
+  .layout-grid-auto {
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  /* Maximized pane overlays the whole canvas without unmounting siblings */
+  .pane-maximized {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 / -1 !important;
+    z-index: 30;
+  }
+}
+
+/* xterm.js terminal host */
+.xterm {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+}
+
+.xterm .xterm-viewport {
+  background-color: transparent !important;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #252525;
+  border-radius: 3px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #333333;
+}

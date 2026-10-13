@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeTerm - Terminal Workspace Manager Preview</title>
+  <style>
+    :root {
+      --bg-base: #121212;
+      --bg-sidebar: #181818;
+      --bg-hover: #222222;
+      --bg-active: #2a2a2a;
+      --border-color: #282828;
+      --border-subtle: #333333;
+      --text-primary: #ededed;
+      --text-secondary: #a3a3a3;
+      --text-muted: #737373;
+      --text-faint: #525252;
+      --accent-green: #4ade80;
+      --accent-cyan: #38bdf8;
+      --accent-yellow: #facc15;
+      --accent-magenta: #c084fc;
+      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      user-select: none;
+    }
+
+    /* Left Sidebar */
+    .sidebar {
+      width: 260px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .app-badge {
+      font-size: 10px;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .sidebar-section {
+      padding: 12px 10px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      padding: 4px 8px 8px;
+      font-weight: 600;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background-color: var(--bg-active);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .nav-item .item-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .btn-create-preset {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: calc(100% - 16px);
+      margin: 8px;
+      padding: 7px 12px;
+      background: transparent;
+      border: 1px dashed var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-create-preset:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--text-muted);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Main Workspace */
+    .main-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background-color: var(--bg-base);
+    }
+
+    /* Top Workspace Bar */
+    .top-toolbar {
+      height: 44px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: var(--bg-sidebar);
+    }
+
+    .workspace-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .workspace-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .layout-badge {
+      font-size: 11px;
+      color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tool-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 5px 9px;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .tool-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-subtle);
+    }
+
+    .tool-btn.active {
+      background: var(--bg-active);
+      color: var(--accent-yellow);
+      border-color: var(--accent-yellow);
+    }
+
+    /* Grid Container */
+    .terminal-canvas {
+      flex: 1;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+      overflow: hidden;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      transition: all 0.2s ease;
+    }
+
+    .terminal-canvas.layout-col3 {
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr;
+    }
+
+    .terminal-canvas.layout-1top2bot {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1.2fr 1fr;
+    }
+    .terminal-canvas.layout-1top2bot .terminal-window:nth-child(1) {
+      grid-column: span 2;
+    }
+
+    /* Terminal Window / Pane */
+    .terminal-window {
+      background-color: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      transition: border-color 0.15s ease;
+      position: relative;
+    }
+
+    .terminal-window:focus-within,
+    .terminal-window.focused {
+      border-color: #444444;
+    }
+
+    .terminal-window.maximized {
+      grid-column: 1 / -1 !important;
+      grid-row: 1 / -1 !important;
+      z-index: 20;
+    }
+
+    /* Window Header with Tabs */
+    .window-header {
+      height: 34px;
+      background: #141414;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px 0 0;
+    }
+
+    .window-tabs {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      overflow-x: auto;
+    }
+
+    .window-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 100%;
+      padding: 0 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-right: 1px solid var(--border-color);
+      cursor: pointer;
+      background: transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .tab-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .tab-item.active {
+      background: var(--bg-sidebar);
+      color: var(--text-primary);
+      font-weight: 500;
+      border-bottom: 2px solid var(--accent-cyan);
+    }
+
+    .tab-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-green);
+    }
+
+    .tab-close {
+      opacity: 0;
+      border-radius: 3px;
+      padding: 1px 3px;
+      font-size: 11px;
+      transition: opacity 0.15s ease;
+    }
+
+    .tab-item:hover .tab-close {
+      opacity: 0.6;
+    }
+
+    .tab-close:hover {
+      opacity: 1 !important;
+      background: #333;
+    }
+
+    .add-tab-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 24px;
+      margin-left: 4px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .add-tab-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .window-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .win-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .win-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* Terminal Body */
+    .terminal-viewport {
+      flex: 1;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.55;
+      background-color: var(--bg-base);
+      color: #d1d5db;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .terminal-viewport::-webkit-scrollbar {
+      width: 6px;
+    }
+    .terminal-viewport::-webkit-scrollbar-thumb {
+      background: #252525;
+      border-radius: 3px;
+    }
+
+    .prompt-user {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+    .prompt-path {
+      color: var(--accent-cyan);
+    }
+    .prompt-branch {
+      color: var(--accent-magenta);
+    }
+    .prompt-arrow {
+      color: var(--text-muted);
+      margin-right: 6px;
+    }
+    .term-cmd {
+      color: #fff;
+      font-weight: 500;
+    }
+    .term-log {
+      color: var(--text-secondary);
+    }
+    .term-success {
+      color: var(--accent-green);
+    }
+    .term-warn {
+      color: var(--accent-yellow);
+    }
+    .term-info {
+      color: var(--accent-cyan);
+    }
+
+    /* Terminal Window Footer */
+    .window-footer {
+      height: 22px;
+      background: #141414;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      font-size: 10px;
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+    }
+
+    .footer-stat {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Interactive Helper Tooltip */
+    .hint-banner {
+      background: #181818;
+      border-top: 1px solid var(--border-color);
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .hint-kbd {
+      background: var(--bg-hover);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    /* SVGs */
+    svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar (Workspace & Layout Manager) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="app-brand">
+        <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+        <span>VibeTerm</span>
+      </div>
+      <span class="app-badge">Tauri v2</span>
+    </div>
+
+    <!-- Presets / Workspaces -->
+    <div class="sidebar-section">
+      <div class="section-label">Terminal Layouts</div>
+      <div class="nav-item active" onclick="switchPreset(this, '2x2')">
+        <span>Dev Quad (4 Win × 2 Tabs)</span>
+        <span class="item-meta">2×2</span>
+      </div>
+      <div class="nav-item" onclick="switchPreset(this, 'col3')">
+        <span>Triple Column Stack</span>
+        <span class="item-meta">1×3</span>
+      </div>
+      <div class="nav-item" onclick="switchPreset(this, '1top2bot')">
+        <span>Main Console + Split</span>
+        <span class="item-meta">1+2</span>
+      </div>
+    </div>
+
+    <button class="btn-create-preset" onclick="alert('In the Tauri desktop app, you will be able to save your current multi-window + tab configuration as a custom named preset!')">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>Save Current as Preset</span>
+    </button>
+
+    <div class="sidebar-section" style="margin-top: 10px;">
+      <div class="section-label">Active Windows (4)</div>
+      <div class="nav-item" onclick="focusWindow(1)">
+        <span>Win #1 (Backend API)</span>
+        <span class="item-meta">2 tabs</span>
+      </div>
+      <div class="nav-item" onclick="focusWindow(2)">
+        <span>Win #2 (Frontend Vite)</span>
+        <span class="item-meta">2 tabs</span>
+      </div>
+      <div class="nav-item" onclick="focusWindow(3)">
+        <span>Win #3 (Database & Logs)</span>
+        <span class="item-meta">2 tabs</span>
+      </div>
+      <div class="nav-item" onclick="focusWindow(4)">
+        <span>Win #4 (Git & Shell)</span>
+        <span class="item-meta">2 tabs</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <span>8 Shell Sessions Active</span>
+      <span style="color: var(--accent-green);">● PTY Ready</span>
+    </div>
+  </aside>
+
+  <!-- Main Stage -->
+  <main class="main-stage">
+    <!-- Top Bar -->
+    <header class="top-toolbar">
+      <div class="workspace-info">
+        <span class="workspace-title">Fullstack Dev Stack</span>
+        <span class="layout-badge" id="layoutBadge">4 Windows · 8 Total Tabs</span>
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="tool-btn" id="broadcastBtn" onclick="toggleBroadcast()">
+          <svg viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/></svg>
+          <span id="broadcastText">Broadcast: Off</span>
+        </button>
+
+        <button class="tool-btn" onclick="addNewWindow()">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          <span>Add Window</span>
+        </button>
+
+        <button class="tool-btn" onclick="resetCanvas()">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          <span>Reset Layout</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 4 Well-Positioned Terminal Windows (Each with 2 Tabs) -->
+    <div class="terminal-canvas" id="terminalCanvas">
+
+      <!-- ==================== WINDOW 1 ==================== -->
+      <section class="terminal-window focused" id="win-1" onclick="focusWindow(1)">
+        <div class="window-header">
+          <div class="window-tabs" id="tabs-win-1">
+            <div class="tab-item active" onclick="switchTab(1, 1, event)">
+              <span class="tab-dot"></span>
+              <span>1: node server.js</span>
+              <span class="tab-close" onclick="closeTab(1, 1, event)">×</span>
+            </div>
+            <div class="tab-item" onclick="switchTab(1, 2, event)">
+              <span class="tab-dot" style="background: var(--text-muted);"></span>
+              <span>2: worker:celery</span>
+              <span class="tab-close" onclick="closeTab(1, 2, event)">×</span>
+            </div>
+            <button class="add-tab-btn" title="Add Tab to Window 1" onclick="addTab(1, event)">+</button>
+          </div>
+          <div class="window-actions">
+            <button class="win-btn" title="Maximize Window" onclick="toggleMaximize(1, event)">⛶</button>
+            <button class="win-btn" title="Close Window" onclick="removeWindow(1, event)">✕</button>
+          </div>
+        </div>
+
+        <div class="terminal-viewport" id="viewport-win-1">
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/backend</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">pnpm run dev:api</span>
+<span class="term-info">[INFO]</span> Starting Express REST Engine on port 8080...
+<span class="term-success">[SUCCESS]</span> Connected to Postgres on localhost:5432
+<span class="term-log">[2026-10-13 17:14:02] GET /api/v1/health 200 OK (1.2ms)</span>
+<span class="term-log">[2026-10-13 17:14:15] POST /api/v1/auth/session 201 Created (14.8ms)</span>
+<span class="term-warn">[WARN]</span> Rate limit threshold at 12% capacity.
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/backend</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span style="display:inline-block; width:7px; height:13px; background:#fff; vertical-align:middle;"></span></div>
+
+        <div class="window-footer">
+          <span class="footer-stat"><span>PID 41920</span> <span>zsh</span></span>
+          <span class="footer-stat"><span>80×24</span> <span>UTF-8</span></span>
+        </div>
+      </section>
+
+      <!-- ==================== WINDOW 2 ==================== -->
+      <section class="terminal-window" id="win-2" onclick="focusWindow(2)">
+        <div class="window-header">
+          <div class="window-tabs" id="tabs-win-2">
+            <div class="tab-item active" onclick="switchTab(2, 1, event)">
+              <span class="tab-dot"></span>
+              <span>1: vite dev</span>
+              <span class="tab-close" onclick="closeTab(2, 1, event)">×</span>
+            </div>
+            <div class="tab-item" onclick="switchTab(2, 2, event)">
+              <span class="tab-dot" style="background: var(--text-muted);"></span>
+              <span>2: tailwind:watch</span>
+              <span class="tab-close" onclick="closeTab(2, 2, event)">×</span>
+            </div>
+            <button class="add-tab-btn" title="Add Tab to Window 2" onclick="addTab(2, event)">+</button>
+          </div>
+          <div class="window-actions">
+            <button class="win-btn" title="Maximize Window" onclick="toggleMaximize(2, event)">⛶</button>
+            <button class="win-btn" title="Close Window" onclick="removeWindow(2, event)">✕</button>
+          </div>
+        </div>
+
+        <div class="terminal-viewport" id="viewport-win-2">
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/frontend</span> <span class="prompt-branch">(feature/terminals)</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">pnpm dev</span>
+
+  <span class="term-success">VITE v6.1.0</span>  ready in <span style="color:#fff;">142 ms</span>
+
+  <span class="term-info">➜</span>  <span style="font-weight:600;">Local:</span>   <span class="term-info">http://localhost:5173/</span>
+  <span class="term-info">➜</span>  <span style="font-weight:600;">Network:</span> use --host to expose
+  <span class="term-info">➜</span>  press <span style="color:#fff;">h + enter</span> to show help
+
+<span class="term-log">17:14:05 [vite] hmr update /src/components/TerminalPane.tsx</span>
+<span class="term-log">17:14:18 [vite] hmr update /src/styles/theme.css</span>
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/frontend</span> <span class="prompt-arrow">➜</span> <span style="display:inline-block; width:7px; height:13px; background:#fff; vertical-align:middle;"></span></div>
+
+        <div class="window-footer">
+          <span class="footer-stat"><span>PID 42104</span> <span>zsh</span></span>
+          <span class="footer-stat"><span>80×24</span> <span>UTF-8</span></span>
+        </div>
+      </section>
+
+      <!-- ==================== WINDOW 3 ==================== -->
+      <section class="terminal-window" id="win-3" onclick="focusWindow(3)">
+        <div class="window-header">
+          <div class="window-tabs" id="tabs-win-3">
+            <div class="tab-item active" onclick="switchTab(3, 1, event)">
+              <span class="tab-dot"></span>
+              <span>1: docker-compose logs</span>
+              <span class="tab-close" onclick="closeTab(3, 1, event)">×</span>
+            </div>
+            <div class="tab-item" onclick="switchTab(3, 2, event)">
+              <span class="tab-dot" style="background: var(--text-muted);"></span>
+              <span>2: redis-cli monitor</span>
+              <span class="tab-close" onclick="closeTab(3, 2, event)">×</span>
+            </div>
+            <button class="add-tab-btn" title="Add Tab to Window 3" onclick="addTab(3, event)">+</button>
+          </div>
+          <div class="window-actions">
+            <button class="win-btn" title="Maximize Window" onclick="toggleMaximize(3, event)">⛶</button>
+            <button class="win-btn" title="Close Window" onclick="removeWindow(3, event)">✕</button>
+          </div>
+        </div>
+
+        <div class="terminal-viewport" id="viewport-win-3">
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/infra</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">docker compose logs -f redis db</span>
+<span style="color:#60a5fa;">db_1     |</span> 2026-10-13 10:14:00.120 UTC [1] LOG:  database system is ready to accept connections
+<span style="color:#f472b6;">redis_1  |</span> 1:M 13 Oct 2026 10:14:01.002 * Ready to accept connections tcp
+<span style="color:#60a5fa;">db_1     |</span> 2026-10-13 10:14:02.401 UTC [29] LOG:  checkpoint starting: time
+<span style="color:#60a5fa;">db_1     |</span> 2026-10-13 10:14:05.100 UTC [29] LOG:  checkpoint complete: 14 buffers written
+<span style="color:#f472b6;">redis_1  |</span> 1:M 13 Oct 2026 10:14:10.512 * 100 changes in 300 seconds. Saving...
+<span style="color:#f472b6;">redis_1  |</span> 1:M 13 Oct 2026 10:14:10.515 * Background saving started by pid 32
+<span style="color:#f472b6;">redis_1  |</span> 32:C 13 Oct 2026 10:14:10.521 * DB saved on disk</div>
+
+        <div class="window-footer">
+          <span class="footer-stat"><span>PID 42350</span> <span>bash</span></span>
+          <span class="footer-stat"><span>80×24</span> <span>UTF-8</span></span>
+        </div>
+      </section>
+
+      <!-- ==================== WINDOW 4 ==================== -->
+      <section class="terminal-window" id="win-4" onclick="focusWindow(4)">
+        <div class="window-header">
+          <div class="window-tabs" id="tabs-win-4">
+            <div class="tab-item active" onclick="switchTab(4, 1, event)">
+              <span class="tab-dot"></span>
+              <span>1: git status / diff</span>
+              <span class="tab-close" onclick="closeTab(4, 1, event)">×</span>
+            </div>
+            <div class="tab-item" onclick="switchTab(4, 2, event)">
+              <span class="tab-dot" style="background: var(--text-muted);"></span>
+              <span>2: htop / sys</span>
+              <span class="tab-close" onclick="closeTab(4, 2, event)">×</span>
+            </div>
+            <button class="add-tab-btn" title="Add Tab to Window 4" onclick="addTab(4, event)">+</button>
+          </div>
+          <div class="window-actions">
+            <button class="win-btn" title="Maximize Window" onclick="toggleMaximize(4, event)">⛶</button>
+            <button class="win-btn" title="Close Window" onclick="removeWindow(4, event)">✕</button>
+          </div>
+        </div>
+
+        <div class="terminal-viewport" id="viewport-win-4">
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/doom-vibing</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">git status</span>
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add &lt;file&gt;..." to update what will be committed)
+	<span style="color:var(--accent-yellow);">modified:   src/components/WindowGrid.tsx</span>
+	<span style="color:var(--accent-yellow);">modified:   src/hooks/useTerminalManager.ts</span>
+
+Untracked files:
+	<span style="color:var(--accent-green);">src-tauri/src/pty_session.rs</span>
+
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/doom-vibing</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span style="display:inline-block; width:7px; height:13px; background:#fff; vertical-align:middle;"></span></div>
+
+        <div class="window-footer">
+          <span class="footer-stat"><span>PID 42511</span> <span>zsh</span></span>
+          <span class="footer-stat"><span>80×24</span> <span>UTF-8</span></span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Interactive Hint Banner -->
+    <div class="hint-banner">
+      <div>
+        <span>💡 Interactive Mockup: Click tabs to switch them, click </span>
+        <span class="hint-kbd">+</span>
+        <span> to add tabs, click </span>
+        <span class="hint-kbd">⛶</span>
+        <span> to maximize any window, or test presets on the sidebar.</span>
+      </div>
+      <div>
+        <span>Style standard: </span>
+        <span style="color: var(--accent-cyan); font-family: var(--font-mono);">erwining Dark Minimalist UI</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Tab data mock
+    const tabContents = {
+      "1-1": `<span class="prompt-user">jack</span>@<span class="prompt-path">~/backend</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">pnpm run dev:api</span>
+<span class="term-info">[INFO]</span> Starting Express REST Engine on port 8080...
+<span class="term-success">[SUCCESS]</span> Connected to Postgres on localhost:5432
+<span class="term-log">[2026-10-13 17:14:02] GET /api/v1/health 200 OK (1.2ms)</span>
+<span class="term-log">[2026-10-13 17:14:15] POST /api/v1/auth/session 201 Created (14.8ms)</span>
+<span class="term-warn">[WARN]</span> Rate limit threshold at 12% capacity.
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/backend</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span style="display:inline-block; width:7px; height:13px; background:#fff; vertical-align:middle;"></span>`,
+
+      "1-2": `<span class="prompt-user">jack</span>@<span class="prompt-path">~/backend</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">celery -A tasks worker --loglevel=INFO</span>
+-------------- celery@ubuntu v5.3.6
+--- ***** ----- 
+-- ******* ---- Linux-6.8.0-x86_64 2026-10-13 17:14:08
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         tasks:0x7f481
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     disabled://
+- *** --- * --- .> concurrency: 8 (prefork)
+<span class="term-success">[2026-10-13 17:14:09,102: INFO/MainProcess] celery@ubuntu ready.</span>
+<span class="term-log">[2026-10-13 17:14:22,410: INFO/ForkPoolWorker-1] Task tasks.send_email[a1] succeeded in 0.04s</span>`,
+
+      "2-1": `<span class="prompt-user">jack</span>@<span class="prompt-path">~/frontend</span> <span class="prompt-branch">(feature/terminals)</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">pnpm dev</span>
+
+  <span class="term-success">VITE v6.1.0</span>  ready in <span style="color:#fff;">142 ms</span>
+
+  <span class="term-info">➜</span>  <span style="font-weight:600;">Local:</span>   <span class="term-info">http://localhost:5173/</span>
+  <span class="term-info">➜</span>  <span style="font-weight:600;">Network:</span> use --host to expose
+  <span class="term-info">➜</span>  press <span style="color:#fff;">h + enter</span> to show help
+
+<span class="term-log">17:14:05 [vite] hmr update /src/components/TerminalPane.tsx</span>
+<span class="term-log">17:14:18 [vite] hmr update /src/styles/theme.css</span>
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/frontend</span> <span class="prompt-arrow">➜</span> <span style="display:inline-block; width:7px; height:13px; background:#fff; vertical-align:middle;"></span>`,
+
+      "2-2": `<span class="prompt-user">jack</span>@<span class="prompt-path">~/frontend</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">npx tailwindcss -i ./src/index.css -o ./dist/output.css --watch</span>
+
+Rebuilding...
+<span class="term-success">Done in 28ms.</span>
+Watching for file changes...
+[17:14:12] Rebuilding due to change in src/components/TerminalPane.tsx
+<span class="term-success">Done in 14ms.</span>`,
+
+      "3-1": `<span class="prompt-user">jack</span>@<span class="prompt-path">~/infra</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">docker compose logs -f redis db</span>
+<span style="color:#60a5fa;">db_1     |</span> 2026-10-13 10:14:00.120 UTC [1] LOG:  database system is ready to accept connections
+<span style="color:#f472b6;">redis_1  |</span> 1:M 13 Oct 2026 10:14:01.002 * Ready to accept connections tcp
+<span style="color:#60a5fa;">db_1     |</span> 2026-10-13 10:14:02.401 UTC [29] LOG:  checkpoint starting: time
+<span style="color:#60a5fa;">db_1     |</span> 2026-10-13 10:14:05.100 UTC [29] LOG:  checkpoint complete: 14 buffers written
+<span style="color:#f472b6;">redis_1  |</span> 1:M 13 Oct 2026 10:14:10.512 * 100 changes in 300 seconds. Saving...`,
+
+      "3-2": `<span class="prompt-user">jack</span>@<span class="prompt-path">~/infra</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">redis-cli -p 6379 monitor</span>
+OK
+1728814450.102384 [0 127.0.0.1:58420] "PING"
+1728814451.298412 [0 127.0.0.1:58420] "GET" "session:usr_9981"
+1728814451.300104 [0 127.0.0.1:58420] "SETEX" "session:usr_9981" "3600" "{\\"role\\":\\"admin\\"}"
+1728814453.719201 [0 127.0.0.1:58422] "PUBLISH" "channel:logs" "event:dispatch"`,
+
+      "4-1": `<span class="prompt-user">jack</span>@<span class="prompt-path">~/doom-vibing</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">git status</span>
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add &lt;file&gt;..." to update what will be committed)
+	<span style="color:var(--accent-yellow);">modified:   src/components/WindowGrid.tsx</span>
+	<span style="color:var(--accent-yellow);">modified:   src/hooks/useTerminalManager.ts</span>
+
+Untracked files:
+	<span style="color:var(--accent-green);">src-tauri/src/pty_session.rs</span>
+
+<span class="prompt-user">jack</span>@<span class="prompt-path">~/doom-vibing</span> <span class="prompt-branch">(main)</span> <span class="prompt-arrow">➜</span> <span style="display:inline-block; width:7px; height:13px; background:#fff; vertical-align:middle;"></span>`,
+
+      "4-2": `<span class="prompt-user">jack</span>@<span class="prompt-path">~</span> <span class="prompt-arrow">➜</span> <span class="term-cmd">htop --tree</span>
+  CPU[|||||||||||||||               28.4%]   Tasks: 248, 1420 thr; 1 running
+  Mem[||||||||||||||||||||||  6.12G/15.8G]   Load average: 0.85 0.91 0.78
+  Swp[|                        128M/4.00G]   Uptime: 2 days, 04:18:22
+
+  PID USER      PRI  NI  VIRT   RES   SHR S CPU% MEM%   TIME+  Command
+ 41920 jack       20   0  712M  120M 45.2M S 12.1  0.7  0:14.2 node server.js
+ 42104 jack       20   0  980M  180M 52.1M S  8.4  1.1  0:22.8 vite dev
+ 42350 jack       20   0 1420M  310M 68.0M S  4.2  1.9  1:02.1 docker
+ 42511 jack       20   0  18.4M 6.2M  3.8M S  0.0  0.0  0:00.4 zsh`
+    };
+
+    function focusWindow(winId) {
+      document.querySelectorAll('.terminal-window').forEach(el => el.classList.remove('focused'));
+      const target = document.getElementById(`win-${winId}`);
+      if (target) target.classList.add('focused');
+    }
+
+    function switchTab(winId, tabId, event) {
+      if (event) event.stopPropagation();
+      const tabGroup = document.getElementById(`tabs-win-${winId}`);
+      if (!tabGroup) return;
+
+      const tabs = tabGroup.querySelectorAll('.tab-item');
+      tabs.forEach((tab, idx) => {
+        if (idx === (tabId - 1)) {
+          tab.classList.add('active');
+          const dot = tab.querySelector('.tab-dot');
+          if (dot) dot.style.background = 'var(--accent-green)';
+        } else {
+          tab.classList.remove('active');
+          const dot = tab.querySelector('.tab-dot');
+          if (dot) dot.style.background = 'var(--text-muted)';
+        }
+      });
+
+      const key = `${winId}-${tabId}`;
+      const viewport = document.getElementById(`viewport-win-${winId}`);
+      if (viewport) {
+        if (tabContents[key]) {
+          viewport.innerHTML = tabContents[key];
+        } else {
+          viewport.innerHTML = `<span class="prompt-user">jack</span>@<span class="prompt-path">~/session-${key}</span> <span class="prompt-arrow">➜</span> <span class="term-cmd"># New tab session ${key} active</span>\n<span class="prompt-user">jack</span>@<span class="prompt-path">~/session-${key}</span> <span class="prompt-arrow">➜</span> <span style="display:inline-block; width:7px; height:13px; background:#fff; vertical-align:middle;"></span>`;
+        }
+      }
+      focusWindow(winId);
+    }
+
+    function addTab(winId, event) {
+      if (event) event.stopPropagation();
+      const tabGroup = document.getElementById(`tabs-win-${winId}`);
+      const currentTabs = tabGroup.querySelectorAll('.tab-item');
+      const newTabId = currentTabs.length + 1;
+      const tabName = prompt(`Enter name for Tab #${newTabId} in Window ${winId}:`, `bash-${newTabId}`) || `tab-${newTabId}`;
+
+      const tabElem = document.createElement('div');
+      tabElem.className = 'tab-item';
+      tabElem.onclick = (e) => switchTab(winId, newTabId, e);
+      tabElem.innerHTML = `
+        <span class="tab-dot" style="background: var(--text-muted);"></span>
+        <span>${newTabId}: ${tabName}</span>
+        <span class="tab-close" onclick="closeTab(${winId}, ${newTabId}, event)">×</span>
+      `;
+
+      const addBtn = tabGroup.querySelector('.add-tab-btn');
+      tabGroup.insertBefore(tabElem, addBtn);
+      switchTab(winId, newTabId);
+    }
+
+    function closeTab(winId, tabId, event) {
+      if (event) event.stopPropagation();
+      alert(`Close tab ${tabId} in window ${winId}`);
+    }
+
+    function toggleMaximize(winId, event) {
+      if (event) event.stopPropagation();
+      const win = document.getElementById(`win-${winId}`);
+      if (!win) return;
+      win.classList.toggle('maximized');
+    }
+
+    function removeWindow(winId, event) {
+      if (event) event.stopPropagation();
+      const win = document.getElementById(`win-${winId}`);
+      if (win) {
+        if (confirm(`Close Window #${winId} and terminate its tabs?`)) {
+          win.style.display = 'none';
+        }
+      }
+    }
+
+    function switchPreset(el, layout) {
+      document.querySelectorAll('.sidebar .nav-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+
+      const canvas = document.getElementById('terminalCanvas');
+      canvas.className = 'terminal-canvas';
+
+      const badge = document.getElementById('layoutBadge');
+
+      if (layout === 'col3') {
+        canvas.classList.add('layout-col3');
+        badge.innerText = 'Triple Column · 6 Total Tabs';
+      } else if (layout === '1top2bot') {
+        canvas.classList.add('layout-1top2bot');
+        badge.innerText = '1 Top + 2 Bottom · 6 Total Tabs';
+      } else {
+        badge.innerText = '4 Windows · 8 Total Tabs';
+      }
+    }
+
+    let broadcasting = false;
+    function toggleBroadcast() {
+      broadcasting = !broadcasting;
+      const btn = document.getElementById('broadcastBtn');
+      const txt = document.getElementById('broadcastText');
+      if (broadcasting) {
+        btn.classList.add('active');
+        txt.innerText = 'Broadcast: ON';
+      } else {
+        btn.classList.remove('active');
+        txt.innerText = 'Broadcast: Off';
+      }
+    }
+
+    function addNewWindow() {
+      alert('Adding a dynamic 5th terminal window pane to the layout.');
+    }
+
+    function resetCanvas() {
+      document.querySelectorAll('.terminal-window').forEach(win => {
+        win.style.display = 'flex';
+        win.classList.remove('maximized');
+      });
+      const canvas = document.getElementById('terminalCanvas');
+      canvas.className = 'terminal-canvas';
+      document.getElementById('layoutBadge').innerText = '4 Windows · 8 Total Tabs';
+    }
+  </script>
+</body>
+</html>

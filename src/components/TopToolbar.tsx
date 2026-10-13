@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, Radio } from 'lucide-react';
+import { ChevronDown, PanelLeft, Plus, Radio } from 'lucide-react';
 import type { BroadcastMode } from '../types';
 import { cn } from '../lib/cn';
 
 interface TopToolbarProps {
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
   workspaceName: string;
   broadcastMode: BroadcastMode;
   onSetBroadcastMode: (mode: BroadcastMode) => void;
@@ -24,6 +26,8 @@ const BROADCAST_OPTIONS: Array<{
 ];
 
 export const TopToolbar: React.FC<TopToolbarProps> = ({
+  sidebarOpen,
+  onToggleSidebar,
   workspaceName,
   broadcastMode,
   onSetBroadcastMode,
@@ -50,6 +54,14 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-dark-border bg-dark-sidebar px-6 select-none">
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          title={sidebarOpen ? 'Hide Layouts (Ctrl+B)' : 'Show Layouts (Ctrl+B)'}
+          className="rounded p-1 text-text-muted transition-colors hover:bg-dark-hover hover:text-text-primary"
+        >
+          <PanelLeft className="h-4 w-4" />
+        </button>
         <h1 className="text-base font-semibold tracking-tight text-text-primary">
           {workspaceName}
         </h1>

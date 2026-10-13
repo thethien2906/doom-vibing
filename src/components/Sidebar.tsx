@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Edit2, LayoutGrid, Plus, Trash2, X } from 'lucide-react';
+import { Check, Edit2, LayoutGrid, PanelLeftClose, Plus, Trash2, X } from 'lucide-react';
 import type { WorkspacePreset } from '../types';
 import { cn } from '../lib/cn';
 
 interface SidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
   layouts: WorkspacePreset[];
   activeLayoutId: string | null;
   onSelectLayout: (layout: WorkspacePreset) => void;
@@ -13,6 +15,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  isOpen,
+  onToggle,
   layouts,
   activeLayoutId,
   onSelectLayout,
@@ -87,13 +91,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col select-none border-r border-dark-border bg-dark-sidebar">
-      {/* App Header */}
-      <div className="flex items-center justify-between border-b border-dark-border px-5 py-5">
-        <span className="text-base font-semibold tracking-tight text-text-primary">
-          doom-vibing
-        </span>
-      </div>
+    <aside
+      className={cn(
+        'flex h-full shrink-0 flex-col select-none border-r border-dark-border bg-dark-sidebar transition-all duration-150 ease-in-out overflow-hidden',
+        isOpen ? 'w-64' : 'w-0 border-r-0'
+      )}
+    >
+      <div className="flex h-full w-64 flex-col">
+        {/* App Header */}
+        <div className="flex items-center justify-between border-b border-dark-border px-5 py-5">
+          <span className="text-base font-semibold tracking-tight text-text-primary">
+            doom-vibing
+          </span>
+          <button
+            type="button"
+            onClick={onToggle}
+            title="Hide Sidebar (Ctrl+B)"
+            className="rounded p-1 text-text-muted transition-colors hover:bg-dark-hover hover:text-text-primary"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+        </div>
 
       {/* Main Navigation */}
       <div className="flex-1 overflow-y-auto p-3">
@@ -264,6 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
         </div>
+      </div>
       </div>
     </aside>
   );

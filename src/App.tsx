@@ -11,6 +11,7 @@ import type { WorkspacePreset } from './types';
 export default function App() {
   const { layouts, createLayout, renameLayout, deleteLayout, updateLayoutContent } = usePresets();
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeLayoutId, setActiveLayoutId] = useState<string>(() => layouts[0]?.id ?? 'layout-default');
 
   const currentLayout = layouts.find((l) => l.id === activeLayoutId) ?? layouts[0];
@@ -110,9 +111,18 @@ export default function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
-      if (!mod || !e.shiftKey) return;
-      const m = managerRef.current;
+      if (!mod) return;
       const key = e.key.toLowerCase();
+
+      // Ctrl+B: Toggle Layouts Sidebar
+      if (!e.shiftKey && key === 'b') {
+        e.preventDefault();
+        setSidebarOpen((v) => !v);
+        return;
+      }
+
+      if (!e.shiftKey) return;
+      const m = managerRef.current;
       const focusedId = m.focusedWindowId;
 
       if (key === 't' && focusedId) {
@@ -144,6 +154,8 @@ export default function App() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-dark-base font-sans text-text-primary antialiased">
       <Sidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((v) => !v)}
         layouts={layouts}
         activeLayoutId={activeLayoutId}
         onSelectLayout={handleSelectLayout}
@@ -154,6 +166,8 @@ export default function App() {
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopToolbar
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen((v) => !v)}
           workspaceName={manager.workspaceName}
           broadcastMode={manager.broadcastMode}
           onSetBroadcastMode={manager.setBroadcastMode}

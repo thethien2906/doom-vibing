@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
+import { ClipboardAddon } from '@xterm/addon-clipboard';
 import {
   killPty,
   onPtyExit,
@@ -108,11 +109,73 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
       convertEol: false,
     });
     const fitAddon = new FitAddon();
+    const clipboardAddon = new ClipboardAddon();
     term.loadAddon(fitAddon);
+    term.loadAddon(clipboardAddon);
     term.open(container);
 
     termRef.current = term;
     fitRef.current = fitAddon;
+
+    // Support standard Ctrl+C / Ctrl+Shift+C / Ctrl+V / Ctrl+Shift+V keyboard actions
+    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (e.type !== 'keydown' || !mod) return true;
+
+      const key = e.key.toLowerCase();
+
+      // Copy: Ctrl+Shift+C or Ctrl+C when there is active text selection
+      if (key === 'c' && (e.shiftKey || term.hasSelection())) {
+        const selection = term.getSelection();
+        if (selection) {
+          void navigator.clipboard.writeText(selection);
+          return false;
+        }
+      }
+
+      // Paste: Ctrl+Shift+V or Ctrl+V
+      if (key === 'v') {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) {
+            void writePty(sessionId, text);
+            optionsRef.current.onBroadcast?.(sessionId, text);
+          }
+        });
+        return false;
+      }
+
+      return true;
+    });
+
+    // Auto copy on selection mouseup
+    const handleMouseUp = () => {
+      if (term.hasSelection()) {
+        const text = term.getSelection();
+        if (text) {
+          void navigator.clipboard.writeText(text);
+        }
+      }
+    };
+    container.addEventListener('mouseup', handleMouseUp);
+
+    // Right-click paste (or copy if selection exists)
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      if (term.hasSelection()) {
+        const text = term.getSelection();
+        if (text) {
+          void navigator.clipboard.writeText(text);
+        }
+      } else {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) {
+            void writePty(sessionId, text);
+            optionsRef.current.onBroadcast?.(sessionId, text);
+          }
+        });
+      }
+    };
+    container.addEventListener('contextmenu', handleContextMenu);
 
     let cancelled = false;
     const unsubs: Unsubscribe[] = [];
@@ -159,6 +222,8 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
 
     return () => {
       cancelled = true;
+      container.removeEventListener('mouseup', handleMouseUp);
+      container.removeEventListener('contextmenu', handleContextMenu);
       dataSub.dispose();
       unsubs.forEach((u) => u());
       void killPty(sessionId);

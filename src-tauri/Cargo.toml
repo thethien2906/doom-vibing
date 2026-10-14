@@ -1,6 +1,6 @@
 [package]
 name = "doom_vibing"
-version = "0.1.1"
+version = "0.1.2"
 description = "doom-vibing — Terminal Workspace Manager"
 authors = ["doom-vibing"]
 edition = "2021"

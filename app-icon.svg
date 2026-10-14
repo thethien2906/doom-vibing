@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#121316"/>
+      <stop offset="50%" stop-color="#0c0d0f"/>
+      <stop offset="100%" stop-color="#070709"/>
+    </linearGradient>
+
+    <!-- Pane Background -->
+    <linearGradient id="paneGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#191a20"/>
+      <stop offset="100%" stop-color="#141418"/>
+    </linearGradient>
+
+    <!-- Neon Cyan Glow -->
+    <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#38bdf8" flood-opacity="0.45"/>
+    </filter>
+
+    <!-- Neon Green Glow -->
+    <filter id="greenGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#4ade80" flood-opacity="0.4"/>
+    </filter>
+
+    <!-- Outer Squircle Shadow -->
+    <filter id="appShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#000000" flood-opacity="0.7"/>
+    </filter>
+  </defs>
+
+  <!-- App Squircle Base (modern rounded icon) -->
+  <rect x="48" y="48" width="928" height="928" rx="216" ry="216" fill="url(#bgGrad)" stroke="#272932" stroke-width="4" filter="url(#appShadow)"/>
+
+  <!-- ==================== WINDOW 1 (Top-Left) ==================== -->
+  <g id="win-1">
+    <!-- Window Body -->
+    <rect x="116" y="116" width="372" height="372" rx="24" fill="url(#paneGrad)" stroke="#252730" stroke-width="3"/>
+    <!-- Header / Tab Bar -->
+    <path d="M 116 176 L 116 140 A 24 24 0 0 1 140 116 L 464 116 A 24 24 0 0 1 488 140 L 488 176 Z" fill="#111215" stroke="#252730" stroke-width="3"/>
+    <!-- Tab 1 (Active with Cyan Indicator) -->
+    <rect x="132" y="128" width="84" height="34" rx="6" fill="#1c1e24"/>
+    <circle cx="146" cy="145" r="4" fill="#38bdf8"/>
+    <rect x="156" y="142" width="46" height="6" rx="3" fill="#94a3b8"/>
+    <rect x="132" y="160" width="84" height="2" fill="#38bdf8"/>
+    <!-- Tab 2 (Inactive) -->
+    <rect x="224" y="128" width="80" height="34" rx="6" fill="transparent"/>
+    <circle cx="238" cy="145" r="4" fill="#475569"/>
+    <rect x="248" y="142" width="42" height="6" rx="3" fill="#475569"/>
+
+    <!-- Terminal Content: Prompt >_ -->
+    <path d="M 166 260 L 226 304 L 166 348" stroke="#38bdf8" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#cyanGlow)"/>
+    <line x1="252" y1="348" x2="306" y2="348" stroke="#f8fafc" stroke-width="20" stroke-linecap="round"/>
+    <line x1="166" y1="400" x2="380" y2="400" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+    <line x1="166" y1="432" x2="280" y2="432" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  </g>
+
+  <!-- ==================== WINDOW 2 (Top-Right) ==================== -->
+  <g id="win-2">
+    <!-- Window Body -->
+    <rect x="536" y="116" width="372" height="372" rx="24" fill="url(#paneGrad)" stroke="#252730" stroke-width="3"/>
+    <!-- Header / Tab Bar -->
+    <path d="M 536 176 L 536 140 A 24 24 0 0 1 560 116 L 884 116 A 24 24 0 0 1 908 140 L 908 176 Z" fill="#111215" stroke="#252730" stroke-width="3"/>
+    <!-- Tab 1 (Active with Green Indicator) -->
+    <rect x="552" y="128" width="84" height="34" rx="6" fill="#1c1e24"/>
+    <circle cx="566" cy="145" r="4" fill="#4ade80"/>
+    <rect x="576" y="142" width="46" height="6" rx="3" fill="#94a3b8"/>
+    <rect x="552" y="160" width="84" height="2" fill="#4ade80"/>
+    <!-- Tab 2 (Inactive) -->
+    <rect x="644" y="128" width="80" height="34" rx="6" fill="transparent"/>
+    <circle cx="658" cy="145" r="4" fill="#475569"/>
+    <rect x="668" y="142" width="42" height="6" rx="3" fill="#475569"/>
+
+    <!-- Terminal Content: Running Logs / Matrix / Vibe -->
+    <line x1="580" y1="240" x2="740" y2="240" stroke="#4ade80" stroke-width="14" stroke-linecap="round" filter="url(#greenGlow)"/>
+    <line x1="580" y1="284" x2="850" y2="284" stroke="#475569" stroke-width="12" stroke-linecap="round"/>
+    <line x1="580" y1="324" x2="780" y2="324" stroke="#475569" stroke-width="12" stroke-linecap="round"/>
+    <line x1="580" y1="364" x2="820" y2="364" stroke="#38bdf8" stroke-width="12" stroke-linecap="round"/>
+    <line x1="580" y1="404" x2="710" y2="404" stroke="#4ade80" stroke-width="12" stroke-linecap="round"/>
+    <line x1="580" y1="440" x2="640" y2="440" stroke="#facc15" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <!-- ==================== WINDOW 3 (Bottom-Left) ==================== -->
+  <g id="win-3">
+    <!-- Window Body -->
+    <rect x="116" y="536" width="372" height="372" rx="24" fill="url(#paneGrad)" stroke="#252730" stroke-width="3"/>
+    <!-- Header / Tab Bar -->
+    <path d="M 116 596 L 116 560 A 24 24 0 0 1 140 536 L 464 536 A 24 24 0 0 1 488 560 L 488 596 Z" fill="#111215" stroke="#252730" stroke-width="3"/>
+    <!-- Tabs -->
+    <rect x="132" y="548" width="84" height="34" rx="6" fill="#1c1e24"/>
+    <circle cx="146" cy="565" r="4" fill="#a78bfa"/>
+    <rect x="156" y="562" width="46" height="6" rx="3" fill="#94a3b8"/>
+    <rect x="132" y="580" width="84" height="2" fill="#a78bfa"/>
+    <rect x="224" y="548" width="80" height="34" rx="6" fill="transparent"/>
+    <circle cx="238" cy="565" r="4" fill="#475569"/>
+    <rect x="248" y="562" width="42" height="6" rx="3" fill="#475569"/>
+
+    <!-- Terminal Content: Pulse / Activity Waveform -->
+    <path d="M 160 740 L 220 740 L 246 676 L 286 800 L 320 718 L 350 756 L 436 756" stroke="#a78bfa" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="246" cy="676" r="6" fill="#a78bfa"/>
+    <circle cx="286" cy="800" r="6" fill="#a78bfa"/>
+    <line x1="160" y1="844" x2="360" y2="844" stroke="#334155" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <!-- ==================== WINDOW 4 (Bottom-Right) ==================== -->
+  <g id="win-4">
+    <!-- Window Body -->
+    <rect x="536" y="536" width="372" height="372" rx="24" fill="url(#paneGrad)" stroke="#252730" stroke-width="3"/>
+    <!-- Header / Tab Bar -->
+    <path d="M 536 596 L 536 560 A 24 24 0 0 1 560 536 L 884 536 A 24 24 0 0 1 908 560 L 908 596 Z" fill="#111215" stroke="#252730" stroke-width="3"/>
+    <!-- Tabs -->
+    <rect x="552" y="548" width="84" height="34" rx="6" fill="#1c1e24"/>
+    <circle cx="566" cy="565" r="4" fill="#facc15"/>
+    <rect x="576" y="562" width="46" height="6" rx="3" fill="#94a3b8"/>
+    <rect x="552" y="580" width="84" height="2" fill="#facc15"/>
+    <rect x="644" y="548" width="80" height="34" rx="6" fill="transparent"/>
+    <circle cx="658" cy="565" r="4" fill="#475569"/>
+    <rect x="668" y="562" width="42" height="6" rx="3" fill="#475569"/>
+
+    <!-- Terminal Content: Multi-process Git / Tree Nodes -->
+    <path d="M 590 730 L 670 660 L 760 660" stroke="#475569" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M 670 660 L 730 760 L 830 760" stroke="#475569" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="590" cy="730" r="14" fill="#38bdf8"/>
+    <circle cx="670" cy="660" r="14" fill="#facc15"/>
+    <circle cx="760" cy="660" r="14" fill="#4ade80"/>
+    <circle cx="730" cy="760" r="14" fill="#c084fc"/>
+    <circle cx="830" cy="760" r="14" fill="#f43f5e"/>
+    <line x1="580" y1="844" x2="780" y2="844" stroke="#334155" stroke-width="10" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -162,9 +162,22 @@ impl PtyManager {
         let session = sessions
             .get_mut(session_id)
             .ok_or_else(|| format!("Unknown PTY session: {}", session_id))?;
+
+        // Normalize non-breaking spaces (\u{00A0}, \u{202F}) and other Unicode spaces to ASCII 0x20,
+        // and strip zero-width characters so bash / shells do not treat "cd code" as a single token.
+        let sanitized = data
+            .replace('\u{00A0}', " ")
+            .replace('\u{202F}', " ")
+            .replace('\u{3000}', " ")
+            .replace('\u{1680}', " ")
+            .replace('\u{200B}', "")
+            .replace('\u{200C}', "")
+            .replace('\u{200D}', "")
+            .replace('\u{FEFF}', "");
+
         session
             .writer
-            .write_all(data.as_bytes())
+            .write_all(sanitized.as_bytes())
             .map_err(|e| e.to_string())?;
         session.writer.flush().map_err(|e| e.to_string())
     }

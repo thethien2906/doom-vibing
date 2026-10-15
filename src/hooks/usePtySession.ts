@@ -117,8 +117,29 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
     termRef.current = term;
     fitRef.current = fitAddon;
 
-    // Support standard Ctrl+C / Ctrl+Shift+C / Ctrl+V / Ctrl+Shift+V keyboard actions
+/**
+ * Normalizes input for terminal PTY:
+ * Replaces non-breaking spaces (\u00A0, \u202F) and Unicode spaces with standard ASCII space (0x20),
+ * and strips invisible zero-width formatting characters.
+ * Prevents shells (bash, zsh) from choking on "cd code" with "command not found"
+ * when typing with IBus/Unikey or WebKitGTK.
+ */
+function sanitizePtyInput(data: string): string {
+  return data
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '');
+}
+
+    // Support standard Ctrl+C / Ctrl+Shift+C / Ctrl+V / Ctrl+Shift+V and keyboard sanitization
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      // Normalize Shift+Space to regular space (WebKitGTK produces \u00a0 on Shift+Space)
+      if (e.code === 'Space' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (e.type === 'keydown') {
+          term.input(' ');
+        }
+        return false;
+      }
+
       const mod = e.ctrlKey || e.metaKey;
       if (e.type !== 'keydown' || !mod) return true;
 
@@ -128,7 +149,7 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
       if (key === 'c' && (e.shiftKey || term.hasSelection())) {
         const selection = term.getSelection();
         if (selection) {
-          void navigator.clipboard.writeText(selection);
+          void navigator.clipboard.writeText(sanitizePtyInput(selection));
           return false;
         }
       }
@@ -137,8 +158,9 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
       if (key === 'v') {
         void navigator.clipboard.readText().then((text) => {
           if (text) {
-            void writePty(sessionId, text);
-            optionsRef.current.onBroadcast?.(sessionId, text);
+            const sanitized = sanitizePtyInput(text);
+            void writePty(sessionId, sanitized);
+            optionsRef.current.onBroadcast?.(sessionId, sanitized);
           }
         });
         return false;
@@ -152,7 +174,7 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
       if (term.hasSelection()) {
         const text = term.getSelection();
         if (text) {
-          void navigator.clipboard.writeText(text);
+          void navigator.clipboard.writeText(sanitizePtyInput(text));
         }
       }
     };
@@ -164,13 +186,14 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
       if (term.hasSelection()) {
         const text = term.getSelection();
         if (text) {
-          void navigator.clipboard.writeText(text);
+          void navigator.clipboard.writeText(sanitizePtyInput(text));
         }
       } else {
         void navigator.clipboard.readText().then((text) => {
           if (text) {
-            void writePty(sessionId, text);
-            optionsRef.current.onBroadcast?.(sessionId, text);
+            const sanitized = sanitizePtyInput(text);
+            void writePty(sessionId, sanitized);
+            optionsRef.current.onBroadcast?.(sessionId, sanitized);
           }
         });
       }
@@ -215,7 +238,8 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
     };
     void boot();
 
-    const dataSub = term.onData((data) => {
+    const dataSub = term.onData((raw) => {
+      const data = sanitizePtyInput(raw);
       void writePty(sessionId, data);
       optionsRef.current.onBroadcast?.(sessionId, data);
     });

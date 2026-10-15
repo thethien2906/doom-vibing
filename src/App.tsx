@@ -5,14 +5,21 @@ import { WindowGrid } from './components/WindowGrid';
 import { useTerminalManager } from './hooks/useTerminalManager';
 import { usePresets } from './hooks/usePresets';
 import { cloneLayoutWindows } from './lib/workspace';
+import { loadActiveLayoutId, persistActiveLayoutId } from './services/presetStore';
 import { writePty } from './services/ptyApi';
 import type { WorkspacePreset } from './types';
 
 export default function App() {
-  const { layouts, createLayout, renameLayout, deleteLayout, updateLayoutContent } = usePresets();
+  const { layouts, layoutsRef, createLayout, renameLayout, deleteLayout, updateLayoutContent } = usePresets();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeLayoutId, setActiveLayoutId] = useState<string>(() => layouts[0]?.id ?? 'layout-default');
+  const [activeLayoutId, setActiveLayoutId] = useState<string>(() => {
+    const savedActiveId = loadActiveLayoutId();
+    if (savedActiveId && layouts.some((l) => l.id === savedActiveId)) {
+      return savedActiveId;
+    }
+    return layouts[0]?.id ?? 'layout-default';
+  });
 
   const currentLayout = layouts.find((l) => l.id === activeLayoutId) ?? layouts[0];
 
@@ -28,7 +35,9 @@ export default function App() {
   const activeIdRef = useRef(activeLayoutId);
   activeIdRef.current = activeLayoutId;
 
-  // Persist current layout changes
+  const isSwitchingRef = useRef(false);
+
+  // Persist current layout changes immediately
   const syncCurrentToStore = useCallback(() => {
     const currentId = activeIdRef.current;
     if (currentId) {
@@ -36,25 +45,51 @@ export default function App() {
     }
   }, [updateLayoutContent]);
 
+  // Auto-persist active layout whenever windows or layout mode changes (adding/closing tabs, windows, etc.)
+  useEffect(() => {
+    if (isSwitchingRef.current) return;
+    if (!activeLayoutId) return;
+    updateLayoutContent(activeLayoutId, manager.layout, manager.windows);
+  }, [activeLayoutId, manager.layout, manager.windows, updateLayoutContent]);
+
   // Switch layout
   const handleSelectLayout = useCallback(
     (target: WorkspacePreset) => {
       if (target.id === activeIdRef.current) return;
+
+      // 1. Immediately save current layout with latest state
       syncCurrentToStore();
+
+      // 2. Mark switching in progress
+      isSwitchingRef.current = true;
+
+      // 3. Find freshest version of target layout from ref (containing all added tabs)
+      const freshest = layoutsRef.current?.find((l) => l.id === target.id) ?? target;
+
+      // 4. Apply workspace to manager
       managerRef.current.applyWorkspace({
-        name: target.name,
-        layout: target.layout,
-        windows: cloneLayoutWindows(target.windows),
+        name: freshest.name,
+        layout: freshest.layout,
+        windows: cloneLayoutWindows(freshest.windows),
       });
-      setActiveLayoutId(target.id);
+
+      // 5. Update active layout ID and persist it
+      setActiveLayoutId(freshest.id);
+      persistActiveLayoutId(freshest.id);
+
+      // 6. Reset switching flag after React paint
+      setTimeout(() => {
+        isSwitchingRef.current = false;
+      }, 50);
     },
-    [syncCurrentToStore]
+    [syncCurrentToStore, layoutsRef]
   );
 
   // Create new blank layout
   const handleCreateLayout = useCallback(
     (name: string) => {
       syncCurrentToStore();
+      isSwitchingRef.current = true;
       const blank = createLayout(name);
       managerRef.current.applyWorkspace({
         name: blank.name,
@@ -62,6 +97,10 @@ export default function App() {
         windows: [],
       });
       setActiveLayoutId(blank.id);
+      persistActiveLayoutId(blank.id);
+      setTimeout(() => {
+        isSwitchingRef.current = false;
+      }, 50);
     },
     [createLayout, syncCurrentToStore]
   );

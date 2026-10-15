@@ -76,13 +76,21 @@ export function createBlankLayout(name: string): WorkspacePreset {
 }
 
 export function cloneLayoutWindows(windows: WindowPane[]): WindowPane[] {
-  return windows.map((win) =>
-    createWindow({
+  if (!windows || windows.length === 0) return [];
+  return windows.map((win) => {
+    const tabs = (win.tabs ?? []).map((tab) =>
+      createTab({ title: tab.title, cwd: tab.cwd, command: tab.command })
+    );
+    const activeIndex = Math.max(
+      0,
+      win.tabs?.findIndex((t) => t.id === win.activeTabId) ?? 0
+    );
+    const activeTabId = tabs[activeIndex]?.id ?? tabs[0]?.id ?? '';
+    return createWindow({
       title: win.title,
       flexBasis: win.flexBasis,
-      tabs: win.tabs.map((tab) =>
-        createTab({ title: tab.title, cwd: tab.cwd, command: tab.command })
-      ),
-    })
-  );
+      tabs: tabs.length > 0 ? tabs : undefined,
+      activeTabId,
+    });
+  });
 }

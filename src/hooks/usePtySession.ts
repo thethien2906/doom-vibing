@@ -52,6 +52,8 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
 
   const { sessionId } = options;
 
+  const lastSizeRef = useRef<{ cols: number; rows: number }>({ cols: 0, rows: 0 });
+
   // Lazily attach the WebGL renderer once the pane is actually visible.
   const ensureWebgl = useCallback(() => {
     if (webglRef.current) return;
@@ -85,7 +87,14 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
       } catch {
         return;
       }
-      void resizePty(sessionId, term.cols, term.rows);
+      if (
+        term.cols > 0 &&
+        term.rows > 0 &&
+        (term.cols !== lastSizeRef.current.cols || term.rows !== lastSizeRef.current.rows)
+      ) {
+        lastSizeRef.current = { cols: term.cols, rows: term.rows };
+        void resizePty(sessionId, term.cols, term.rows);
+      }
       if (shouldFocus) term.focus();
     },
     [ensureWebgl, sessionId]
@@ -204,6 +213,16 @@ function sanitizePtyInput(data: string): string {
     const unsubs: Unsubscribe[] = [];
 
     const boot = async () => {
+      // Fit before spawning so initial columns match the real container dimensions
+      try {
+        fitAddon.fit();
+      } catch {
+        /* container not measurable yet */
+      }
+      const initialCols = term.cols > 0 ? term.cols : 80;
+      const initialRows = term.rows > 0 ? term.rows : 24;
+      lastSizeRef.current = { cols: initialCols, rows: initialRows };
+
       // Subscribe before spawning so the first bytes are never dropped.
       unsubs.push(await onPtyOutput(sessionId, (data) => term.write(data)));
       unsubs.push(
@@ -219,8 +238,8 @@ function sanitizePtyInput(data: string): string {
           sessionId,
           cwd: optionsRef.current.cwd,
           command: optionsRef.current.command,
-          cols: term.cols || 80,
-          rows: term.rows || 24,
+          cols: initialCols,
+          rows: initialRows,
         });
       } catch (err) {
         term.write(`\r\n\x1b[31mFailed to spawn PTY: ${String(err)}\x1b[0m\r\n`);
@@ -228,12 +247,6 @@ function sanitizePtyInput(data: string): string {
       }
       if (cancelled) return;
       optionsRef.current.onSpawned?.();
-      try {
-        fitAddon.fit();
-      } catch {
-        /* container not measurable yet */
-      }
-      void resizePty(sessionId, term.cols, term.rows);
       if (optionsRef.current.active) term.focus();
     };
     void boot();
@@ -259,10 +272,16 @@ function sanitizePtyInput(data: string): string {
     };
   }, [sessionId]);
 
-  // Fit + focus whenever this tab becomes the visible one.
+  // Fit + focus + clean refresh whenever this tab becomes visible
   useEffect(() => {
     if (!options.active) return;
-    const raf = requestAnimationFrame(() => fit(true));
+    const term = termRef.current;
+    if (!term) return;
+    const raf = requestAnimationFrame(() => {
+      fit(true);
+      term.refresh(0, Math.max(0, term.rows - 1));
+      term.scrollToBottom();
+    });
     return () => cancelAnimationFrame(raf);
   }, [options.active, fit]);
 

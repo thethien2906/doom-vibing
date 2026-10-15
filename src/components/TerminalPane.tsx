@@ -90,7 +90,12 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
           return (
             <div
               key={tab.id}
-              className={cn('absolute inset-0', isActive ? 'block' : 'hidden')}
+              className={cn(
+                'absolute inset-0',
+                isActive
+                  ? 'visible z-10 opacity-100'
+                  : 'invisible -z-10 opacity-0 pointer-events-none'
+              )}
             >
               <TerminalView
                 sessionId={tab.sessionId}

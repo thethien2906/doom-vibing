@@ -34,6 +34,7 @@ export interface TerminalManager {
   switchTab: (windowId: string, tabId: string) => void;
   renameTab: (windowId: string, tabId: string, title: string) => void;
   updateTab: (windowId: string, tabId: string, patch: Partial<TerminalTab>) => void;
+  updateTabCwd: (sessionId: string, cwd: string) => void;
 
   toggleMaximize: (windowId: string) => void;
   setBroadcastMode: (mode: BroadcastMode) => void;
@@ -74,14 +75,20 @@ export function useTerminalManager(initial: InitialWorkspace): TerminalManager {
   const addWindow = useCallback(() => {
     setWindows((prev) => {
       const nextIndex = prev.length + 1;
+      const focusedWin = prev.find((w) => w.id === focusedWindowId);
+      const activeTab = focusedWin?.tabs.find((t) => t.id === focusedWin.activeTabId);
+      const initialCwd = activeTab?.cwd;
       const win = createWindow({
         title: `Window ${nextIndex}`,
-        tabs: [createTab({ title: 'tab 1' }), createTab({ title: 'tab 2' })],
+        tabs: [
+          createTab({ title: 'tab 1', cwd: initialCwd }),
+          createTab({ title: 'tab 2', cwd: initialCwd }),
+        ],
       });
       setFocusedWindowId(win.id);
       return [...prev, win];
     });
-  }, []);
+  }, [focusedWindowId]);
 
   const removeWindow = useCallback((windowId: string) => {
     setWindows((prev) => {
@@ -99,7 +106,11 @@ export function useTerminalManager(initial: InitialWorkspace): TerminalManager {
     setWindows((prev) =>
       prev.map((win) => {
         if (win.id !== windowId) return win;
-        const tab = createTab({ title: title ?? nextTabTitle(win) });
+        const currentActive = win.tabs.find((t) => t.id === win.activeTabId);
+        const tab = createTab({
+          title: title ?? nextTabTitle(win),
+          cwd: currentActive?.cwd,
+        });
         return { ...win, tabs: [...win.tabs, tab], activeTabId: tab.id };
       })
     );
@@ -167,6 +178,23 @@ export function useTerminalManager(initial: InitialWorkspace): TerminalManager {
     },
     []
   );
+
+  const updateTabCwd = useCallback((sessionId: string, cwd: string) => {
+    if (!cwd) return;
+    setWindows((prev) => {
+      let changed = false;
+      const next = prev.map((win) => {
+        const tabIndex = win.tabs.findIndex((t) => t.sessionId === sessionId);
+        if (tabIndex === -1) return win;
+        if (win.tabs[tabIndex].cwd === cwd) return win;
+        changed = true;
+        const newTabs = [...win.tabs];
+        newTabs[tabIndex] = { ...newTabs[tabIndex], cwd };
+        return { ...win, tabs: newTabs };
+      });
+      return changed ? next : prev;
+    });
+  }, []);
 
   const toggleMaximize = useCallback((windowId: string) => {
     setMaximizedWindowId((current) => (current === windowId ? null : windowId));
@@ -262,6 +290,7 @@ export function useTerminalManager(initial: InitialWorkspace): TerminalManager {
     switchTab,
     renameTab,
     updateTab,
+    updateTabCwd,
 
     toggleMaximize,
     setBroadcastMode,

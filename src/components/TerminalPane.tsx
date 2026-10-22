@@ -20,6 +20,7 @@ interface TerminalPaneProps {
   onTabSpawned: (tabId: string) => void;
   onTabExit: (tabId: string, code: number) => void;
   onBroadcast: (sourceSessionId: string, data: string) => void;
+  onCwdChange?: (sessionId: string, cwd: string) => void;
 }
 
 export const TerminalPane: React.FC<TerminalPaneProps> = ({
@@ -37,6 +38,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   onTabSpawned,
   onTabExit,
   onBroadcast,
+  onCwdChange,
 }) => {
   return (
     <section
@@ -103,6 +105,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
                 command={tab.command}
                 active={isActive}
                 onBroadcast={onBroadcast}
+                onCwdChange={onCwdChange}
                 onSpawned={() => onTabSpawned(tab.id)}
                 onExit={(code) => onTabExit(tab.id, code)}
               />

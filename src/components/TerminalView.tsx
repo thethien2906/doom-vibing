@@ -7,6 +7,7 @@ interface TerminalViewProps {
   command?: string;
   active: boolean;
   onBroadcast?: (sourceSessionId: string, data: string) => void;
+  onCwdChange?: (sessionId: string, cwd: string) => void;
   onSpawned?: () => void;
   onExit?: (code: number) => void;
 }
@@ -20,6 +21,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   command,
   active,
   onBroadcast,
+  onCwdChange,
   onSpawned,
   onExit,
 }) => {
@@ -29,6 +31,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     command,
     active,
     onBroadcast,
+    onCwdChange,
     onSpawned,
     onExit,
   });

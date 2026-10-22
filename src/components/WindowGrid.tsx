@@ -28,6 +28,7 @@ interface WindowGridProps {
   onTabSpawned: (windowId: string, tabId: string) => void;
   onTabExit: (windowId: string, tabId: string, code: number) => void;
   onBroadcast: (sourceSessionId: string, data: string) => void;
+  onCwdChange?: (sessionId: string, cwd: string) => void;
   onAddWindow: () => void;
 }
 
@@ -47,6 +48,7 @@ export const WindowGrid: React.FC<WindowGridProps> = ({
   onTabSpawned,
   onTabExit,
   onBroadcast,
+  onCwdChange,
   onAddWindow,
 }) => {
   if (windows.length === 0) {
@@ -89,6 +91,7 @@ export const WindowGrid: React.FC<WindowGridProps> = ({
           onTabSpawned={(tabId) => onTabSpawned(pane.id, tabId)}
           onTabExit={(tabId, code) => onTabExit(pane.id, tabId, code)}
           onBroadcast={onBroadcast}
+          onCwdChange={onCwdChange}
         />
       ))}
     </div>

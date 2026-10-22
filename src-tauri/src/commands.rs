@@ -42,3 +42,9 @@ pub fn pty_resize(
 pub fn pty_kill(state: State<'_, PtyManager>, session_id: String) -> Result<(), String> {
     state.kill(&session_id)
 }
+
+/// Query the current working directory of a running PTY session.
+#[tauri::command]
+pub fn pty_get_cwd(state: State<'_, PtyManager>, session_id: String) -> Result<Option<String>, String> {
+    Ok(state.get_cwd(&session_id))
+}

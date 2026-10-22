@@ -6,7 +6,7 @@ import { useTerminalManager } from './hooks/useTerminalManager';
 import { usePresets } from './hooks/usePresets';
 import { cloneLayoutWindows } from './lib/workspace';
 import { loadActiveLayoutId, persistActiveLayoutId } from './services/presetStore';
-import { writePty } from './services/ptyApi';
+import { getPtyCwd, writePty } from './services/ptyApi';
 import type { WorkspacePreset } from './types';
 
 export default function App() {
@@ -38,11 +38,21 @@ export default function App() {
   const isSwitchingRef = useRef(false);
 
   // Persist current layout changes immediately
-  const syncCurrentToStore = useCallback(() => {
+  const syncCurrentToStore = useCallback(async () => {
     const currentId = activeIdRef.current;
-    if (currentId) {
-      updateLayoutContent(currentId, managerRef.current.layout, managerRef.current.windows);
+    if (!currentId) return;
+    const currentWindows = managerRef.current.windows;
+    for (const win of currentWindows) {
+      for (const tab of win.tabs) {
+        if (tab.status === 'active' && tab.sessionId) {
+          const cwd = await getPtyCwd(tab.sessionId);
+          if (cwd) {
+            tab.cwd = cwd;
+          }
+        }
+      }
     }
+    updateLayoutContent(currentId, managerRef.current.layout, currentWindows);
   }, [updateLayoutContent]);
 
   // Auto-persist active layout whenever windows or layout mode changes (adding/closing tabs, windows, etc.)
@@ -54,11 +64,11 @@ export default function App() {
 
   // Switch layout
   const handleSelectLayout = useCallback(
-    (target: WorkspacePreset) => {
+    async (target: WorkspacePreset) => {
       if (target.id === activeIdRef.current) return;
 
-      // 1. Immediately save current layout with latest state
-      syncCurrentToStore();
+      // 1. Immediately save current layout with latest state and CWDs
+      await syncCurrentToStore();
 
       // 2. Mark switching in progress
       isSwitchingRef.current = true;
@@ -87,8 +97,8 @@ export default function App() {
 
   // Create new blank layout
   const handleCreateLayout = useCallback(
-    (name: string) => {
-      syncCurrentToStore();
+    async (name: string) => {
+      await syncCurrentToStore();
       isSwitchingRef.current = true;
       const blank = createLayout(name);
       managerRef.current.applyWorkspace({
@@ -136,6 +146,10 @@ export default function App() {
 
   const handleTabExit = useCallback((windowId: string, tabId: string, code: number) => {
     managerRef.current.updateTab(windowId, tabId, { status: 'exited', exitCode: code });
+  }, []);
+
+  const handleCwdChange = useCallback((sessionId: string, cwd: string) => {
+    managerRef.current.updateTabCwd(sessionId, cwd);
   }, []);
 
   // Broadcast router
@@ -229,6 +243,7 @@ export default function App() {
           onTabSpawned={handleTabSpawned}
           onTabExit={handleTabExit}
           onBroadcast={handleBroadcast}
+          onCwdChange={handleCwdChange}
           onAddWindow={manager.addWindow}
         />
       </main>

@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import {
+  getPtyCwd,
   killPty,
   onPtyExit,
   onPtyOutput,
@@ -25,6 +26,7 @@ export interface UsePtySessionOptions {
   command?: string;
   active: boolean;
   onBroadcast?: (sourceSessionId: string, data: string) => void;
+  onCwdChange?: (sessionId: string, cwd: string) => void;
   onSpawned?: () => void;
   onExit?: (code: number) => void;
 }
@@ -121,10 +123,58 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
     const clipboardAddon = new ClipboardAddon();
     term.loadAddon(fitAddon);
     term.loadAddon(clipboardAddon);
+
+    // Register OSC 7 (cwd file:// URI) and OSC 9;9 (ConEmu/Windows Terminal cwd)
+    term.parser.registerOscHandler(7, (data) => {
+      let path = data;
+      if (path.startsWith('file://')) {
+        try {
+          const url = new URL(path);
+          path = decodeURIComponent(url.pathname);
+          if (/^\/[a-zA-Z]:/.test(path)) {
+            path = path.slice(1);
+          }
+        } catch {
+          path = path.replace(/^file:\/\/[^\/]*/, '');
+        }
+      }
+      if (path) {
+        optionsRef.current.onCwdChange?.(sessionId, path);
+        return true;
+      }
+      return false;
+    });
+
+    term.parser.registerOscHandler(9, (data) => {
+      if (data.startsWith('9;')) {
+        let path = data.slice(2).trim();
+        if (path.startsWith('"') && path.endsWith('"')) {
+          path = path.slice(1, -1);
+        }
+        if (path) {
+          optionsRef.current.onCwdChange?.(sessionId, path);
+          return true;
+        }
+      }
+      return false;
+    });
+
     term.open(container);
 
     termRef.current = term;
     fitRef.current = fitAddon;
+
+    let cwdDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const triggerCwdCheck = (delayMs = 300) => {
+      if (cwdDebounceTimer) clearTimeout(cwdDebounceTimer);
+      cwdDebounceTimer = setTimeout(async () => {
+        if (cancelled) return;
+        const cwd = await getPtyCwd(sessionId);
+        if (cwd && !cancelled) {
+          optionsRef.current.onCwdChange?.(sessionId, cwd);
+        }
+      }, delayMs);
+    };
 
 /**
  * Normalizes input for terminal PTY:
@@ -139,8 +189,13 @@ function sanitizePtyInput(data: string): string {
     .replace(/[\u200B-\u200D\uFEFF]/g, '');
 }
 
-    // Support standard Ctrl+C / Ctrl+Shift+C / Ctrl+V / Ctrl+Shift+V and keyboard sanitization
+    // Support standard Ctrl+C / Ctrl+Shift+C and keyboard sanitization
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      // Query CWD after Enter is pressed (gives shell ~300ms to chdir)
+      if (e.key === 'Enter' && e.type === 'keydown') {
+        triggerCwdCheck(350);
+      }
+
       // Normalize Shift+Space to regular space (WebKitGTK produces \u00a0 on Shift+Space)
       if (e.code === 'Space' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         if (e.type === 'keydown') {
@@ -159,21 +214,13 @@ function sanitizePtyInput(data: string): string {
         const selection = term.getSelection();
         if (selection) {
           void navigator.clipboard.writeText(sanitizePtyInput(selection));
+          term.clearSelection();
           return false;
         }
       }
 
-      // Paste: Ctrl+Shift+V or Ctrl+V
-      if (key === 'v') {
-        void navigator.clipboard.readText().then((text) => {
-          if (text) {
-            const sanitized = sanitizePtyInput(text);
-            void writePty(sessionId, sanitized);
-            optionsRef.current.onBroadcast?.(sessionId, sanitized);
-          }
-        });
-        return false;
-      }
+      // Note: Paste (Ctrl+V / Ctrl+Shift+V) is natively handled by xterm's DOM paste listener
+      // on helper textarea, which prevents duplicate paste triggers across platforms.
 
       return true;
     });
@@ -196,13 +243,12 @@ function sanitizePtyInput(data: string): string {
         const text = term.getSelection();
         if (text) {
           void navigator.clipboard.writeText(sanitizePtyInput(text));
+          term.clearSelection();
         }
       } else {
         void navigator.clipboard.readText().then((text) => {
           if (text) {
-            const sanitized = sanitizePtyInput(text);
-            void writePty(sessionId, sanitized);
-            optionsRef.current.onBroadcast?.(sessionId, sanitized);
+            term.paste(sanitizePtyInput(text));
           }
         });
       }
@@ -247,6 +293,7 @@ function sanitizePtyInput(data: string): string {
       }
       if (cancelled) return;
       optionsRef.current.onSpawned?.();
+      triggerCwdCheck(100);
       if (optionsRef.current.active) term.focus();
     };
     void boot();
@@ -259,6 +306,7 @@ function sanitizePtyInput(data: string): string {
 
     return () => {
       cancelled = true;
+      if (cwdDebounceTimer) clearTimeout(cwdDebounceTimer);
       container.removeEventListener('mouseup', handleMouseUp);
       container.removeEventListener('contextmenu', handleContextMenu);
       dataSub.dispose();

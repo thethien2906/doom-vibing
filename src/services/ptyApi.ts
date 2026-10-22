@@ -249,6 +249,10 @@ class MockShell {
 
     this.emit(`${ESC}[31mzsh: command not found: ${cmd.split(' ')[0]}${ESC}[0m\r\n`);
   }
+
+  getCwd(): string {
+    return this.cwd;
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -282,6 +286,18 @@ export async function resizePty(sessionId: string, cols: number, rows: number): 
   if (isTauriRuntime) {
     await invoke('pty_resize', { sessionId, cols, rows });
   }
+}
+
+export async function getPtyCwd(sessionId: string): Promise<string | null> {
+  if (isTauriRuntime) {
+    try {
+      const cwd = await invoke<string | null>('pty_get_cwd', { sessionId });
+      return cwd ?? null;
+    } catch {
+      return null;
+    }
+  }
+  return hubs.get(sessionId)?.shell?.getCwd() ?? null;
 }
 
 export async function killPty(sessionId: string): Promise<void> {

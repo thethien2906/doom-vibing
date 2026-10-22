@@ -207,6 +207,29 @@ impl PtyManager {
         Ok(())
     }
 
+    /// Retrieve the current working directory of the process backing the given session.
+    pub fn get_cwd(&self, session_id: &str) -> Option<String> {
+        let sessions = self.sessions.lock().unwrap();
+        let session = sessions.get(session_id)?;
+        let pid = session.child.process_id()?;
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(link) = std::fs::read_link(format!("/proc/{}/cwd", pid)) {
+                return Some(link.to_string_lossy().to_string());
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(cwd) = get_windows_process_cwd(pid) {
+                return Some(cwd);
+            }
+        }
+
+        None
+    }
+
     /// Kill every tracked session. Used on application shutdown.
     pub fn kill_all(&self) {
         let mut sessions = self.sessions.lock().unwrap();
@@ -214,6 +237,139 @@ impl PtyManager {
             let _ = session.child.kill();
             let _ = session.child.wait();
         }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_windows_process_cwd(pid: u32) -> Option<String> {
+    use std::ffi::c_void;
+    use std::mem;
+
+    type HANDLE = *mut c_void;
+
+    #[repr(C)]
+    struct UNICODE_STRING {
+        length: u16,
+        maximum_length: u16,
+        buffer: *mut u16,
+    }
+
+    #[repr(C)]
+    struct PROCESS_BASIC_INFORMATION {
+        exit_status: i32,
+        peb_base_address: *mut c_void,
+        affinity_mask: usize,
+        base_priority: i32,
+        unique_process_id: usize,
+        inherited_from_unique_process_id: usize,
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn OpenProcess(dwDesiredAccess: u32, bInheritHandle: i32, dwProcessId: u32) -> HANDLE;
+        fn ReadProcessMemory(
+            hProcess: HANDLE,
+            lpBaseAddress: *const c_void,
+            lpBuffer: *mut c_void,
+            nSize: usize,
+            lpNumberOfBytesRead: *mut usize,
+        ) -> i32;
+        fn CloseHandle(hObject: HANDLE) -> i32;
+    }
+
+    #[link(name = "ntdll")]
+    extern "system" {
+        fn NtQueryInformationProcess(
+            ProcessHandle: HANDLE,
+            ProcessInformationClass: u32,
+            ProcessInformation: *mut c_void,
+            ProcessInformationLength: u32,
+            ReturnLength: *mut u32,
+        ) -> i32;
+    }
+
+    unsafe {
+        const PROCESS_QUERY_INFORMATION: u32 = 0x0400;
+        const PROCESS_VM_READ: u32 = 0x0010;
+
+        let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid);
+        if handle.is_null() {
+            return None;
+        }
+
+        let mut pbi: PROCESS_BASIC_INFORMATION = mem::zeroed();
+        let mut return_length = 0u32;
+        let status = NtQueryInformationProcess(
+            handle,
+            0, // ProcessBasicInformation
+            &mut pbi as *mut _ as *mut c_void,
+            mem::size_of::<PROCESS_BASIC_INFORMATION>() as u32,
+            &mut return_length,
+        );
+
+        if status < 0 || pbi.peb_base_address.is_null() {
+            CloseHandle(handle);
+            return None;
+        }
+
+        #[cfg(target_pointer_width = "64")]
+        let process_parameters_offset = 0x20usize;
+        #[cfg(target_pointer_width = "32")]
+        let process_parameters_offset = 0x10usize;
+
+        let mut process_parameters: *mut c_void = std::ptr::null_mut();
+        let mut read_bytes = 0usize;
+        let ok = ReadProcessMemory(
+            handle,
+            pbi.peb_base_address.add(process_parameters_offset) as *const c_void,
+            &mut process_parameters as *mut _ as *mut c_void,
+            mem::size_of::<*mut c_void>(),
+            &mut read_bytes,
+        );
+
+        if ok == 0 || process_parameters.is_null() {
+            CloseHandle(handle);
+            return None;
+        }
+
+        #[cfg(target_pointer_width = "64")]
+        let current_directory_offset = 0x38usize;
+        #[cfg(target_pointer_width = "32")]
+        let current_directory_offset = 0x24usize;
+
+        let mut cwd_unicode: UNICODE_STRING = mem::zeroed();
+        let ok = ReadProcessMemory(
+            handle,
+            process_parameters.add(current_directory_offset) as *const c_void,
+            &mut cwd_unicode as *mut _ as *mut c_void,
+            mem::size_of::<UNICODE_STRING>(),
+            &mut read_bytes,
+        );
+
+        if ok == 0 || cwd_unicode.length == 0 || cwd_unicode.buffer.is_null() {
+            CloseHandle(handle);
+            return None;
+        }
+
+        let len_u16 = (cwd_unicode.length / 2) as usize;
+        let mut buf = vec![0u16; len_u16];
+        let ok = ReadProcessMemory(
+            handle,
+            cwd_unicode.buffer as *const c_void,
+            buf.as_mut_ptr() as *mut c_void,
+            cwd_unicode.length as usize,
+            &mut read_bytes,
+        );
+
+        CloseHandle(handle);
+
+        if ok == 0 {
+            return None;
+        }
+
+        String::from_utf16(&buf).ok().map(|s| {
+            s.trim_end_matches('\\').to_string()
+        })
     }
 }
 
@@ -272,5 +428,20 @@ mod tests {
         assert!(manager.write("missing", "x").is_err());
         assert!(manager.resize("missing", 80, 24).is_err());
         assert!(manager.kill("missing").is_ok());
+    }
+
+    #[test]
+    fn get_cwd_returns_working_directory() {
+        let manager = PtyManager::new();
+        let emitter: EventEmitter = Box::new(|_, _| {});
+        manager
+            .spawn_with(emitter, "test-cwd".to_string(), None, None, 80, 24)
+            .expect("spawn should succeed");
+
+        std::thread::sleep(Duration::from_millis(300));
+        let cwd = manager.get_cwd("test-cwd");
+        manager.kill("test-cwd").ok();
+
+        assert!(cwd.is_some(), "expected get_cwd to return Some path");
     }
 }

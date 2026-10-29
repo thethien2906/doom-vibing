@@ -164,6 +164,33 @@ export function usePtySession(options: UsePtySessionOptions): PtySessionHandle {
     termRef.current = term;
     fitRef.current = fitAddon;
 
+    // Track IME composition state on the helper textarea to prevent
+    // xterm.js from corrupting or spamming text when handling IME events.
+    let isComposing = false;
+    let compEndTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const onCompositionStart = () => {
+      isComposing = true;
+      if (compEndTimer) {
+        clearTimeout(compEndTimer);
+        compEndTimer = null;
+      }
+    };
+
+    const onCompositionEnd = () => {
+      // Allow xterm's internal setTimeout(0) in _finalizeComposition to retrieve the composed text,
+      // then cleanly reset the helper textarea so future keystrokes don't diff against stale buffer.
+      compEndTimer = setTimeout(() => {
+        isComposing = false;
+        if (term.textarea) {
+          term.textarea.value = '';
+        }
+      }, 40);
+    };
+
+    term.textarea?.addEventListener('compositionstart', onCompositionStart);
+    term.textarea?.addEventListener('compositionend', onCompositionEnd);
+
     let cwdDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     const triggerCwdCheck = (delayMs = 300) => {
       if (cwdDebounceTimer) clearTimeout(cwdDebounceTimer);
@@ -200,6 +227,33 @@ function sanitizePtyInput(data: string): string {
       if (e.code === 'Space' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         if (e.type === 'keydown') {
           term.input(' ');
+        }
+        return false;
+      }
+
+      // Workaround for xterm.js issue #5887/#6045 with IMEs (IBus/Unikey on Linux, CJK/Vietnamese on macOS/Windows):
+      // When an IME is active in non-composition or passthrough mode, non-alphabetic keys (Space, punctuation,
+      // symbols, numbers) arrive with keyCode === 229 while not composing.
+      // xterm.js routes these to _handleAnyTextareaChanges(), which attempts a deferred string replace on
+      // an un-cleared helper textarea, corrupting input and repeatedly duplicating/extending previously typed text.
+      const isImePassthrough =
+        e.keyCode === 229 &&
+        !isComposing &&
+        !e.isComposing &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        (e.key.length === 1 || e.code === 'Space');
+
+      if (isImePassthrough) {
+        if (e.type === 'keydown') {
+          const charToSend = e.code === 'Space' ? ' ' : e.key;
+          if (charToSend !== 'Process' && charToSend !== 'Unidentified') {
+            term.input(sanitizePtyInput(charToSend));
+            if (term.textarea) {
+              term.textarea.value = '';
+            }
+          }
         }
         return false;
       }
@@ -302,11 +356,18 @@ function sanitizePtyInput(data: string): string {
       const data = sanitizePtyInput(raw);
       void writePty(sessionId, data);
       optionsRef.current.onBroadcast?.(sessionId, data);
+      // Keep textarea empty when not actively composing to prevent deferred IME diff pollution
+      if (!isComposing && term.textarea && term.textarea.value.length > 0) {
+        term.textarea.value = '';
+      }
     });
 
     return () => {
       cancelled = true;
       if (cwdDebounceTimer) clearTimeout(cwdDebounceTimer);
+      if (compEndTimer) clearTimeout(compEndTimer);
+      term.textarea?.removeEventListener('compositionstart', onCompositionStart);
+      term.textarea?.removeEventListener('compositionend', onCompositionEnd);
       container.removeEventListener('mouseup', handleMouseUp);
       container.removeEventListener('contextmenu', handleContextMenu);
       dataSub.dispose();
